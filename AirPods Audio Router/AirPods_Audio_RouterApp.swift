@@ -11,7 +11,12 @@ import SwiftUI
 struct AirPods_Audio_RouterApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            TabView {
+                AudioSourcesView()
+                    .tabItem { Label("Application Audio Sources", systemImage: "waveform") }
+                ContentView()
+                    .tabItem { Label("Audio Devices", systemImage: "speaker.wave.2") }
+            }
         }
     }
 }

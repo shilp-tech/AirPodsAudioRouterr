@@ -247,3 +247,54 @@ The following installed Apple files were read directly. They are primary evidenc
 - **H6 — ScreenCaptureKit stream/filter/audio configuration:** [SCStream.h](/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/ScreenCaptureKit.framework/Headers/SCStream.h).
 
 Web citations throughout point to Apple documentation, Apple developer presentations, or Apple Support. Developer-forum reports were not used as proof of Apple guarantees or as an app compatibility certification.
+
+## 9. Step 2 experiment — application audio-source discovery
+
+Added September 26, 2026. This section appends experiment results; the preceding research remains historical context. Test environment remains macOS 26.6.2, Xcode 26.3, and the macOS 26.2 SDK. This is not a runtime validation on macOS 26.0.
+
+### Scope and implementation
+
+The app now has an Application Audio Sources tab with manual Refresh. The original Audio Devices screen and its discovery code are unchanged and remain accessible in a second tab. Discovery uses Apple's native Core Audio HAL Swift interface, with AppKit used only to resolve a running application directly from its PID. It does not create taps, aggregates, or audio I/O; request microphone access; install drivers; or change any audio settings. There are no background services or listeners.
+
+The installed SDK confirms these relevant APIs:
+
+| API | What the experiment can establish |
+| --- | --- |
+| `AudioHardwareSystem.shared.processes` / `kAudioHardwarePropertyProcessObjectList` | Enumerates audio client process objects, not all running applications or all audible sources. |
+| `AudioHardwareProcess.pid`, `.bundleID` | OS PID and bundle identity when readable. These are different from the process object's HAL `AudioObjectID`. |
+| `AudioHardwareProcess.isRunningOutput` | Active output I/O with at least one active output stream. This is not a measurement of nonzero audio. |
+| `kAudioProcessPropertyDevices`, queried with output scope | Device IDs associated with that process's output. Device name, output channel count, and nominal sample rate can then be queried separately. These are device properties, not an application stream's PCM format. |
+| `CATapDescription` and `AudioHardwareCreateProcessTap` | A process HAL object ID can be supplied to a tap description. API availability does not establish capture eligibility or successful sample delivery. |
+
+The Swift HAL wrapper is declared available from macOS 15; tap creation from macOS 14.2. `CATapDescription.bundleIDs` and `isProcessRestoreEnabled` are marked macOS 26.0 in the installed SDK. References: H1–H3 above. The UI separates active output clients from inactive/unknown clients and retains metadata failures as explicit unavailable values. It does not invent names for browser websites, merge helper processes into an assumed parent, or represent a missing read as inactive.
+
+### Verified results
+
+- The Debug arm64 Xcode build passed, including a rebuild after fixing empty-string name/bundle-ID fallbacks.
+- The actual built app was launched and its UI inspected, rather than relying only on a standalone command-line query. Its signed entitlements retain `com.apple.security.app-sandbox = true`; no audio-input or microphone entitlement was added.
+- At the inspected snapshots, the sandboxed app displayed **33 HAL audio clients and 0 active output clients**. Chrome and Chrome helpers appeared separately. Some system/service clients were also present. These counts are observations at that time, not fixed expected results.
+- Some clients returned empty names/bundle IDs. The corrected UI was relaunched and verified to show a `Process <PID>` fallback and `Unavailable` instead of blank identity fields.
+- Clicking Refresh advanced the displayed snapshot timestamp. Switching to Audio Devices displayed the existing device list successfully.
+- No recording-permission prompt was observed during enumeration. The experiment did not reset or audit existing TCC grants, so this is not a fresh-user authorization test.
+
+### Not verified / not established
+
+- **No positive playback test was completed.** All inspected clients reported inactive output and no associated output devices. Thus active/inactive transitions during Chrome/YouTube, Spotify playback, or a FaceTime call, and nonempty output-device metadata, still need testing.
+- Spotify and FaceTime were not established as named active sources. Seeing system services such as `avconferenced` does not prove that FaceTime call audio is attributable to or capturable from them.
+- No tap was created and no PCM was read. Tap creation, permissions for capture, capture of protected content, and audible signal delivery remain unverified. The UI deliberately says creation/capture is not tested.
+- The inspected process interface does not expose a list of an app's internal audio streams, their PCM formats, browser URLs/tab titles, or individual call participants. HAL device streams are not application-internal streams. A friendly list saying “YouTube” solely from Chrome's PID would be unsupported.
+- This experiment confirms that read-only audio-client enumeration works in this sandboxed configuration. It does **not** certify reliable detection of every application currently making sound.
+
+### Process taps, ScreenCaptureKit, and permissions
+
+The closest next capture experiment is to select a verified HAL process object, create a private **unmuted** process tap, add it to a private aggregate, and measure received PCM without playback or routing. Keeping it unmuted would preserve normal playback. That is a future experiment, not part of this implementation. Apple's sample requires `NSAudioCaptureUsageDescription` and describes system audio recording consent when recording starts on a tap-containing aggregate. Capture entitlement/sandbox behavior must be tested separately; successful enumeration does not authorize recording. [Apple process-tap sample](https://developer.apple.com/documentation/coreaudio/capturing-system-audio-with-core-audio-taps).
+
+This implementation only reads metadata and adds no recording usage descriptions or entitlements. Microphone capture is unnecessary for this feature. If microphone capture is introduced later, its permission is separate; it is outside the proposed source-output experiment.
+
+ScreenCaptureKit is relevant as an alternative application-filtered capture backend. Its `SCShareableContent` application list describes shareable content, not current audio activity. `capturesAudio` and application filters can deliver samples, but window selection does not isolate that window's audio from other windows in the same application. It therefore cannot justify labeling one Chrome source as YouTube or solve tab-level attribution here. [Apple WWDC22 audio-filtering explanation](https://developer.apple.com/videos/play/wwdc2022/10155/).
+
+ScreenCaptureKit's screen-content capture path requires screen-recording authorization or session-scoped user selection through the system sharing picker; it is not a permission-free substitute for process taps. Neither ScreenCaptureKit capture nor its authorization was exercised. See section 6 for the existing permission discussion.
+
+### Next manual validation
+
+Run the app from Xcode, start one source at a time, and click Refresh before/during/after playback. Record which HAL process IDs report active output, including helpers. Repeat with two sources together and after process restart. Test FaceTime in an actual call rather than merely opening the app. Do not assume that pause immediately stops output I/O: an application may continue running silent output. Only a later consented PCM-meter experiment can establish signal activity and capture success.
