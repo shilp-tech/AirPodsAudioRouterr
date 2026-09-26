@@ -18,6 +18,8 @@ The project uses automatic signing. For local development, use **Sign to Run Loc
 
 ## Development environment
 
+See [WORKFLOW.md](WORKFLOW.md) for the shared Codex/Xcode setup and the check, commit, and push workflow. Project instructions are recorded in [AGENTS.md](AGENTS.md).
+
 - Apple Silicon Mac
 - Xcode 26.3
 - Swift compiler 6.2.4 (the starter project currently uses Swift 5 language mode)
