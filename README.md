@@ -1,5 +1,7 @@
 # AirPods Audio Router
 
+We are planning to build a native macOS application called "AirPods Audio Router."
+
 Native macOS app project investigating per-application audio capture and routing to separate stereo channels.
 
 Current status: architecture research and the initial SwiftUI app only. Audio capture and routing are not implemented.
