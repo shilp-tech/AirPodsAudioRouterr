@@ -33,4 +33,4 @@ See [ARCHITECTURE_RESEARCH.md](ARCHITECTURE_RESEARCH.md) for the API investigati
 
 Keep Xcode user state, build products, credentials, and signing certificates out of version control. Commit shared project settings, source files, assets, and documentation.
 
-GitHub repository: [shilp-tech/AirPodsAudioRouter](https://github.com/shilp-tech/AirPodsAudioRouter).
+GitHub repository: [shilp-tech/AirPodsAudioRouterr](https://github.com/shilp-tech/AirPodsAudioRouterr).
